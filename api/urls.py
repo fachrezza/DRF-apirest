@@ -18,6 +18,8 @@ urlpatterns = [
 
     # Router API harus di bawah
     path('', include(router.urls)),
-    path('comment/<int:post_id>/', views.add_comment, name='add_comment'),
-    path('like/<int:post_id>/', views.like_post, name='like_post'),
+
+    path('add_comment_ajax/<int:post_id>/', views.add_comment_ajax, name='add_comment_ajax'),
+    # path('like/<int:post_id>/', views.like_post, name='like_post'),
+    path('like-post/<int:post_id>/', views.ajax_like_post, name='ajax_like_post'),
 ]

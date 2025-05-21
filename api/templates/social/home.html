@@ -2,48 +2,133 @@
 {% load static %}
 
 {% block content %}
-<h2>Welcome, {{ request.user.username }}</h2>
+<div class="container mt-4">
+    <h2 class="mb-4">Welcome, {{ request.user.username }}</h2>
 
-<!-- Post form -->
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Post</button>
-</form>
 
-<hr>
+    <!-- Posts list -->
+    {% for post in posts %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <p class="mb-1">
+                    <strong>{{ post.user.username }}</strong>
+                    <span class="text-muted">| {{ post.created_at }}</span>
+                </p>
+                <p>{{ post.content }}</p>
 
-<!-- Posts list -->
-{% for post in posts %}
-    <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;">
-        <p><strong>{{ post.user.username }}</strong> <em>{{ post.created_at }}</em></p>
-        <p>{{ post.content }}</p>
+                <!-- Like -->
 
-        <!-- Like -->
-        <form method="post" action="{% url 'like_post' post.id %}" style="display: inline;">
-            {% csrf_token %}
-            <button type="submit">
-                {% if post.liked_by_user %}
-                    ❤️ Unlike
-                {% else %}
-                    🤍 Like
-                {% endif %}
-            </button>
-        </form>
-        <span>{{ post.like_set.count }} likes</span>
 
-        <!-- Comments -->
-        <div style="margin-left: 20px;">
-            {% for comment in post.comment_set.all %}
-                <p><strong>{{ comment.user.username }}</strong>: {{ comment.content }}</p>
-            {% endfor %}
-            <form method="post" action="{% url 'add_comment' post.id %}">
-                {% csrf_token %}
-                <input type="text" name="content" placeholder="Comment..." required>
-                <button type="submit">Add</button>
-            </form>
+                <button type="button"
+                    class="btn btn-sm {% if post.liked_by_user %}btn-danger{% else %}btn-outline-danger{% endif %} like-btn"
+                    data-post-id="{{ post.id }}">
+                    {% if post.liked_by_user %}
+                        ❤️ Unlike
+                    {% else %}
+                        🤍 Like
+                    {% endif %}
+                </button>
+                <span class="like-count" id="like-count-{{ post.id }}">{{ post.like_set.count }} likes</span>
+
+
+                <!-- Comments -->
+                <div id="comments-{{ post.id }}">
+                    {% for comment in post.comment_set.all %}
+                        <p><strong>{{ comment.user.username }}</strong>: {{ comment.content }}</p>
+                    {% endfor %}
+                </div>
+
+                <!-- Form komentar AJAX -->
+                <form class="comment-form" data-post-id="{{ post.id }}">
+                    {% csrf_token %}
+                    <input type="text" name="content" placeholder="Comment..." required class="form-control mb-2">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Add</button>
+                </form>
+            </div>
         </div>
-    </div>
-{% endfor %}
+    {% empty %}
+        <p class="text-muted">No posts available.</p>
+    {% endfor %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const likeButtons = document.querySelectorAll('.like-btn');
+
+    likeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const postId = button.getAttribute('data-post-id');
+
+            fetch(`/like-post/${postId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Accept': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                const likeCountSpan = document.getElementById(`like-count-${postId}`);
+                likeCountSpan.textContent = `${data.like_count} likes`;
+
+                if (data.action === 'liked') {
+                    button.classList.remove('btn-outline-danger');
+                    button.classList.add('btn-danger');
+                    button.innerHTML = '❤️ Unlike';
+                } else {
+                    button.classList.remove('btn-danger');
+                    button.classList.add('btn-outline-danger');
+                    button.innerHTML = '🤍 Like';
+                }
+            });
+        });
+    });
+
+    // Utility to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const trimmed = cookie.trim();
+                if (trimmed.startsWith(name + '=')) {
+                    cookieValue = decodeURIComponent(trimmed.slice(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+<script>
+document.querySelectorAll('.comment-form').forEach(form => {
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const postId = this.getAttribute('data-post-id');
+        const content = this.querySelector('input[name="content"]').value;
+        const csrfToken = this.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        const response = await fetch(`/add_comment_ajax/${postId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify({ content })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const commentHTML = `<p><strong>${data.username}</strong>: ${data.content}</p>`;
+            document.getElementById(`comments-${postId}`).innerHTML += commentHTML;
+            this.querySelector('input[name="content"]').value = ''; // clear
+        } else {
+            alert('Gagal menambahkan komentar.');
+        }
+    });
+});
+</script>
+
 
 {% endblock %}
