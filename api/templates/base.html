@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Social</title>
+</head>
+<body>
+    {% if user.is_authenticated %}
+        <p>Logged in as {{ user.username }} | <a href="{% url 'logout' %}">Logout</a></p>
+    {% endif %}
+    <hr>
+    {% block content %}{% endblock %}
+</body>
+</html>

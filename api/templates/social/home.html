@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<h2>Welcome, {{ request.user.username }}</h2>
+
+<!-- Post form -->
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Post</button>
+</form>
+
+<hr>
+
+<!-- Posts list -->
+{% for post in posts %}
+    <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px;">
+        <p><strong>{{ post.user.username }}</strong> <em>{{ post.created_at }}</em></p>
+        <p>{{ post.content }}</p>
+
+        <!-- Like -->
+        <form method="post" action="{% url 'like_post' post.id %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit">
+                {% if post.liked_by_user %}
+                    ❤️ Unlike
+                {% else %}
+                    🤍 Like
+                {% endif %}
+            </button>
+        </form>
+        <span>{{ post.like_set.count }} likes</span>
+
+        <!-- Comments -->
+        <div style="margin-left: 20px;">
+            {% for comment in post.comment_set.all %}
+                <p><strong>{{ comment.user.username }}</strong>: {{ comment.content }}</p>
+            {% endfor %}
+            <form method="post" action="{% url 'add_comment' post.id %}">
+                {% csrf_token %}
+                <input type="text" name="content" placeholder="Comment..." required>
+                <button type="submit">Add</button>
+            </form>
+        </div>
+    </div>
+{% endfor %}
+
+{% endblock %}
